@@ -5,10 +5,22 @@ import SignatureClient from './SignatureClient';
 
 export default function InterventionForm() {
   const [interventionId, setInterventionId] = useState(null);
+
   const [formData, setFormData] = useState({
-    date_debut: '', date_fin: '', type_intervention: 'Climatisation',
-    equipement: '', description_probleme: '', travaux_realises: '',
-    recommandations: '', id_client: '1', id_site: '1', technicienIds: '1'
+    date_debut: '', 
+    date_fin: '', 
+    type_intervention: 'Climatisation',
+    equipement: '', 
+    description_probleme: '', 
+    travaux_realises: '',
+    recommandations: '', 
+    remarques_client: '',
+    // Champs de saisie libre pour le client et le site
+    nom_client: '', 
+    contact_client: '', 
+    adresse_site: '', 
+    // Liste dynamique pour les techniciens
+    noms_techniciens: [''] 
   });
 
   const [photos, setPhotos] = useState([]); 
@@ -16,6 +28,24 @@ export default function InterventionForm() {
   const [error, setError] = useState('');
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  // --- Gestion de la liste des techniciens ---
+  const handleTechnicienChange = (index, value) => {
+    const newTechs = [...formData.noms_techniciens];
+    newTechs[index] = value;
+    setFormData({ ...formData, noms_techniciens: newTechs });
+  };
+
+  const addTechnicien = () => {
+    setFormData({ ...formData, noms_techniciens: [...formData.noms_techniciens, ''] });
+  };
+
+  const removeTechnicien = (index) => {
+    if (formData.noms_techniciens.length <= 1) return;
+    const newTechs = formData.noms_techniciens.filter((_, i) => i !== index);
+    setFormData({ ...formData, noms_techniciens: newTechs });
+  };
+  // -------------------------------------------
 
   const handlePhotoChange = (e) => {
     const filesSelected = Array.from(e.target.files);
@@ -32,13 +62,25 @@ export default function InterventionForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!formData.date_debut || !formData.date_fin || !formData.travaux_realises || !formData.type_intervention) {
-      setError("Veuillez remplir tous les champs obligatoires marqués d'une étoile (*).");
+    
+    if (!formData.date_debut || !formData.date_fin || !formData.travaux_realises || !formData.type_intervention || !formData.nom_client || !formData.adresse_site) {
+      setError("Veuillez remplir les champs obligatoires (Client, Site, Dates, Travaux).");
       return;
     }
+
     setLoading(true);
     const dataToSend = new FormData();
-    Object.entries(formData).forEach(([key, value]) => dataToSend.append(key, value));
+    
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === 'noms_techniciens') {
+        // Transforme le tableau ["Moussa", "Amina"] en texte "Moussa,Amina" pour le backend
+        const techniciensString = value.filter(n => n.trim() !== '').join(',');
+        dataToSend.append(key, techniciensString);
+      } else {
+        dataToSend.append(key, value);
+      }
+    });
+
     photos.forEach((p) => dataToSend.append('photos', p.file));
     dataToSend.append('photosData', JSON.stringify(photos.map(p => ({ categorie: p.categorie, legende: p.legende }))));
 
@@ -53,8 +95,8 @@ export default function InterventionForm() {
     }
   };
 
-  // Classes Tailwind réutilisables pour avoir un design uniforme
-  const inputClasses = "w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white";
+  // Classes de style Tailwind pour avoir un design uniforme
+  const inputClasses = "w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm";
   const labelClasses = "block text-sm font-medium text-gray-700";
 
   return (
@@ -64,18 +106,33 @@ export default function InterventionForm() {
         <p className="text-gray-500">Smart Intervention Reporter</p>
       </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md text-sm">{error}</div>}
 
-      {/* FORMULAIRE */}
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        {/* Carte 1 : Infos Générales */}
+        {/* --- CARTE 1 : CLIENT & SITE (Saisie libre) --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Informations Générales</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Client & Site d'intervention</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+              <label className={labelClasses}>Prénom et nom du client *</label>
+              <input type="text" name="nom_client" value={formData.nom_client} onChange={handleChange} required className={inputClasses} placeholder="Ex: Mouhamed Lo" />
+            </div>
+            <div>
+              <label className={labelClasses}>Téléphone client</label>
+              <input type="tel" name="contact_client" value={formData.contact_client} onChange={handleChange} className={inputClasses} placeholder="+221 77 123 45 67" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className={labelClasses}>Adresse du site *</label>
+            <input type="text" name="adresse_site" value={formData.adresse_site} onChange={handleChange} required className={inputClasses} placeholder="Ex: Dakar, Plateau, Rue 123" />
+          </div>
+        </div>
+
+        {/* --- CARTE 2 : INFOS INTERVENTION --- */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Détails de l'intervention</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -101,33 +158,60 @@ export default function InterventionForm() {
             </div>
             <div>
               <label className={labelClasses}>Équipement concerné</label>
-              <input type="text" name="equipement" value={formData.equipement} onChange={handleChange} className={inputClasses} />
+              <input type="text" name="equipement" value={formData.equipement} onChange={handleChange} className={inputClasses} placeholder="Référence ou description" />
             </div>
+          </div>
+
+          {/* --- TECHNICIENS DYNAMIQUES --- */}
+          <div className="mt-4">
+            <label className={labelClasses}>Technicien(s) assigné(s)</label>
+            <div className="mt-1 space-y-2">
+              {formData.noms_techniciens.map((tech, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tech}
+                    onChange={(e) => handleTechnicienChange(index, e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                    placeholder={`Nom du technicien ${index + 1}`}
+                  />
+                  {formData.noms_techniciens.length > 1 && (
+                    <button type="button" onClick={() => removeTechnicien(index)} className="bg-red-100 text-red-600 hover:bg-red-200 p-2 rounded-md transition" title="Supprimer">✕</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addTechnicien} className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-1">
+              <span className="text-lg leading-none">+</span> Ajouter un autre technicien
+            </button>
           </div>
         </div>
 
-        {/* Carte 2 : Travaux */}
+        {/* --- CARTE 3 : TRAVAUX --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Travaux & Diagnostic</h2>
           
           <div className="mb-4">
             <label className={labelClasses}>Description du problème</label>
-            <textarea name="description_probleme" value={formData.description_probleme} onChange={handleChange} rows="3" className={inputClasses}></textarea>
+            <textarea name="description_probleme" value={formData.description_probleme} onChange={handleChange} rows="3" className={inputClasses} placeholder="Diagnostic initial observé sur site..."></textarea>
           </div>
           <div className="mb-4">
             <label className={labelClasses}>Travaux réalisés *</label>
-            <textarea name="travaux_realises" value={formData.travaux_realises} onChange={handleChange} rows="3" required className={inputClasses}></textarea>
+            <textarea name="travaux_realises" value={formData.travaux_realises} onChange={handleChange} rows="3" required className={inputClasses} placeholder="Description détaillée des actions effectuées..."></textarea>
+          </div>
+          <div className="mb-4">
+            <label className={labelClasses}>Recommandations</label>
+            <textarea name="recommandations" value={formData.recommandations} onChange={handleChange} rows="2" className={inputClasses} placeholder="Conseils ou actions à prévoir..."></textarea>
           </div>
           <div>
-            <label className={labelClasses}>Recommandations</label>
-            <textarea name="recommandations" value={formData.recommandations} onChange={handleChange} rows="2" className={inputClasses}></textarea>
+            <label className={labelClasses}>Remarques client</label>
+            <input type="text" name="remarques_client" value={formData.remarques_client} onChange={handleChange} className={inputClasses} placeholder="Remarques éventuelles du client..." />
           </div>
         </div>
 
-        {/* Carte 3 : Photos */}
+        {/* --- CARTE 4 : PHOTOS --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Photos (Avant / Pendant / Après)</h2>
-          
           <div className="mt-2 flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 bg-gray-50 relative">
             <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             <div className="text-center text-gray-500">
@@ -135,7 +219,6 @@ export default function InterventionForm() {
               <p className="text-xs">PNG, JPG jusqu'à 5MB</p>
             </div>
           </div>
-
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {photos.map((p, index) => (
               <div key={index} className="border rounded-lg p-3 bg-gray-50 flex flex-col">
@@ -153,45 +236,34 @@ export default function InterventionForm() {
           </div>
         </div>
 
-        {/* Bouton de sauvegarde */}
-        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg">
+        <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 disabled:opacity-50 text-lg">
           {loading ? 'Envoi en cours...' : '1. Sauvegarder l\'intervention'}
         </button>
       </form>
 
-      {/* --- MODULES D'ÉTAPES (N'apparaissent que si sauvegardé) --- */}
+      {/* --- MODULES QUI APPARAISSENT APRÈS SAUVEGARDE --- */}
       {interventionId && (
         <div className="mt-8 space-y-8 pt-6 border-t-2 border-dashed border-gray-300">
-          
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
             <h2 className="text-xl font-bold text-blue-800">Intervention N°{interventionId} en cours de complétion...</h2>
-            <p className="text-blue-600 text-sm">Veuillez terminer les étapes ci-dessous pour générer le rapport.</p>
           </div>
 
-          {/* Étape 2 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-blue-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-2">Étape 2 : Note vocale</h2>
             <NoteVocale interventionId={interventionId} />
           </div>
 
-          {/* Étape 3 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-purple-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-2">Étape 3 : Signature du client</h2>
             <SignatureClient interventionId={interventionId} />
           </div>
 
-          {/* Étape 4 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-green-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Étape 4 : Rapport final</h2>
-            <button 
-              onClick={() => window.open(`http://localhost:3000/api/pdf/${interventionId}`, '_blank')}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 text-lg flex items-center justify-center gap-2"
-            >
+            <button onClick={() => window.open(`http://localhost:3000/api/pdf/${interventionId}`, '_blank')} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 text-lg flex items-center justify-center gap-2">
               <span>📄</span> Télécharger le Rapport PDF
             </button>
-            <p className="text-xs text-gray-500 mt-2 text-center">Le PDF contiendra toutes les données, photos et la signature intégrées.</p>
           </div>
-
         </div>
       )}
     </div>

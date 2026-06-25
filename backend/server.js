@@ -24,7 +24,8 @@ const interventionRoutes = require('./routes/intervention');
 const noteVocaleRoutes = require('./routes/noteVocale');
 const signatureRoutes = require('./routes/signature');
 const pdfRoutes = require('./routes/pdf'); // <--- NOUVELLE LIGNE AJOUTÉE ICI
-
+const listesRoutes = require('./routes/listes');
+app.use('/api/listes', listesRoutes);
 // ---------------------------------------------------------
 // 7. DÉCLARATION DES ROUTES
 // ---------------------------------------------------------
