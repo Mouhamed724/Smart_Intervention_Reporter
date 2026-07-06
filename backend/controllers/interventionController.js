@@ -2,7 +2,7 @@ const { Intervention, Photo, Client, Site, Technicien } = require('../models');
 
 exports.createIntervention = async (req, res) => {
   try {
-    const { date_debut, date_fin, type_intervention, equipement, description_probleme, travaux_realises, recommandations, remarques_client, nom_client, contact_client, adresse_site, noms_techniciens, photosData } = req.body;
+    const { date_debut, date_fin, type_intervention, equipement, description_probleme, travaux_realises, recommandations, remarques_client, titre_rapport, nom_client, contact_client, adresse_site, noms_techniciens, photosData } = req.body;
 
     // 1. FIND OR CREATE : Client
     const [client] = await Client.findOrCreate({
@@ -18,7 +18,7 @@ exports.createIntervention = async (req, res) => {
     // 3. Création de l'intervention
     const nouvelleIntervention = await Intervention.create({
       date_debut, date_fin, type_intervention, equipement, 
-      description_probleme, travaux_realises, recommandations, remarques_client,
+      description_probleme, travaux_realises, recommandations, remarques_client, titre_rapport,
       id_client: client.id_client,
       id_site: site.id_site
     });
@@ -29,10 +29,10 @@ exports.createIntervention = async (req, res) => {
       for (const nom of nomsArray) {
         const nomPropre = nom.trim();
         if (nomPropre) {
-                  const [tech] = await Technicien.findOrCreate({
-          where: { nom: nomPropre },
-          defaults: { prenom: 'N/A' } // On met N/A par défaut car le formulaire ne sépare plus le prénom du nom
-        });
+          const [tech] = await Technicien.findOrCreate({
+            where: { nom: nomPropre },
+            defaults: { prenom: 'N/A' }
+          });
           await nouvelleIntervention.addTechnicien(tech);
         }
       }
@@ -54,7 +54,6 @@ exports.createIntervention = async (req, res) => {
     res.status(201).json({ message: "Intervention créée avec succès !", id: nouvelleIntervention.id_intervention });
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Erreur lors de la création de l'intervention" });
   }
 };

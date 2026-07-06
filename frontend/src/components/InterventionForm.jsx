@@ -3,54 +3,46 @@ import axios from 'axios';
 import NoteVocale from './NoteVocale';
 import SignatureClient from './SignatureClient';
 
+// On récupère l'URL du backend depuis le fichier .env
+const API = import.meta.env.VITE_API_URL;
+
 export default function InterventionForm() {
   const [interventionId, setInterventionId] = useState(null);
 
   const [formData, setFormData] = useState({
-    date_debut: '', 
-    date_fin: '', 
-    type_intervention: 'Climatisation',
-    equipement: '', 
-    description_probleme: '', 
-    travaux_realises: '',
-    recommandations: '', 
-    remarques_client: '',
-    // Champs de saisie libre pour le client et le site
-    nom_client: '', 
-    contact_client: '', 
-    adresse_site: '', 
-    // Liste dynamique pour les techniciens
+    date_debut: '', date_fin: '', type_intervention: 'Climatisation',
+    equipement: '', description_probleme: '', travaux_realises: '',
+    recommandations: '', remarques_client: '', titre_rapport: '',
+    nom_client: '', contact_client: '', adresse_site: '', 
     noms_techniciens: [''] 
   });
 
   const [photos, setPhotos] = useState([]); 
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setSuccess(''); // Cache le message de succès si on modifie le formulaire
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  // --- Gestion de la liste des techniciens ---
   const handleTechnicienChange = (index, value) => {
     const newTechs = [...formData.noms_techniciens];
     newTechs[index] = value;
     setFormData({ ...formData, noms_techniciens: newTechs });
   };
 
-  const addTechnicien = () => {
-    setFormData({ ...formData, noms_techniciens: [...formData.noms_techniciens, ''] });
-  };
-
+  const addTechnicien = () => setFormData({ ...formData, noms_techniciens: [...formData.noms_techniciens, ''] });
+  
   const removeTechnicien = (index) => {
     if (formData.noms_techniciens.length <= 1) return;
-    const newTechs = formData.noms_techniciens.filter((_, i) => i !== index);
-    setFormData({ ...formData, noms_techniciens: newTechs });
+    setFormData({ ...formData, noms_techniciens: formData.noms_techniciens.filter((_, i) => i !== index) });
   };
-  // -------------------------------------------
 
   const handlePhotoChange = (e) => {
     const filesSelected = Array.from(e.target.files);
-    const newPhotos = filesSelected.map(file => ({ file, categorie: 'avant', legende: '' }));
-    setPhotos([...photos, ...newPhotos]);
+    setPhotos([...photos, ...filesSelected.map(file => ({ file, categorie: 'avant', legende: '' }))]);
   };
 
   const updatePhotoMeta = (index, field, value) => {
@@ -61,10 +53,10 @@ export default function InterventionForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError(''); setSuccess('');
     
     if (!formData.date_debut || !formData.date_fin || !formData.travaux_realises || !formData.type_intervention || !formData.nom_client || !formData.adresse_site) {
-      setError("Veuillez remplir les champs obligatoires (Client, Site, Dates, Travaux).");
+      setError("Veuillez remplir tous les champs obligatoires (Client, Site, Dates, Travaux).");
       return;
     }
 
@@ -73,9 +65,7 @@ export default function InterventionForm() {
     
     Object.entries(formData).forEach(([key, value]) => {
       if (key === 'noms_techniciens') {
-        // Transforme le tableau ["Moussa", "Amina"] en texte "Moussa,Amina" pour le backend
-        const techniciensString = value.filter(n => n.trim() !== '').join(',');
-        dataToSend.append(key, techniciensString);
+        dataToSend.append(key, value.filter(n => n.trim() !== '').join(','));
       } else {
         dataToSend.append(key, value);
       }
@@ -85,17 +75,16 @@ export default function InterventionForm() {
     dataToSend.append('photosData', JSON.stringify(photos.map(p => ({ categorie: p.categorie, legende: p.legende }))));
 
     try {
-      const response = await axios.post('http://localhost:3000/api/interventions', dataToSend);
+      const response = await axios.post(`${API}/interventions`, dataToSend);
       setInterventionId(response.data.id); 
-      alert('✅ Intervention sauvegardée avec succès !');
+      setSuccess("L'intervention a été enregistrée avec succès. Vous pouvez continuer.");
     } catch (err) {
-      setError("Erreur lors de l'envoi des données.");
+      setError("Une erreur est survenue lors de l'enregistrement. Vérifiez votre connexion au serveur.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Classes de style Tailwind pour avoir un design uniforme
   const inputClasses = "w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm";
   const labelClasses = "block text-sm font-medium text-gray-700";
 
@@ -107,15 +96,14 @@ export default function InterventionForm() {
       </div>
 
       {error && <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md text-sm">{error}</div>}
+      {success && <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-md text-sm">{success}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        {/* --- CARTE 1 : CLIENT & SITE (Saisie libre) --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Client & Site d'intervention</h2>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div>
+            <div>
               <label className={labelClasses}>Prénom et nom du client *</label>
               <input type="text" name="nom_client" value={formData.nom_client} onChange={handleChange} required className={inputClasses} placeholder="Ex: Mouhamed Lo" />
             </div>
@@ -130,11 +118,15 @@ export default function InterventionForm() {
           </div>
         </div>
 
-        {/* --- CARTE 2 : INFOS INTERVENTION --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Détails de l'intervention</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-4">
+            <label className={labelClasses}>Titre personnalisé du rapport</label>
+            <input type="text" name="titre_rapport" value={formData.titre_rapport} onChange={handleChange} className={inputClasses} placeholder="Laisser vide pour : Rapport d'intervention" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className={labelClasses}>Date de début *</label>
               <input type="datetime-local" name="date_debut" value={formData.date_debut} onChange={handleChange} required className={inputClasses} />
@@ -162,19 +154,12 @@ export default function InterventionForm() {
             </div>
           </div>
 
-          {/* --- TECHNICIENS DYNAMIQUES --- */}
           <div className="mt-4">
             <label className={labelClasses}>Technicien(s) assigné(s)</label>
             <div className="mt-1 space-y-2">
               {formData.noms_techniciens.map((tech, index) => (
                 <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={tech}
-                    onChange={(e) => handleTechnicienChange(index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
-                    placeholder={`Nom du technicien ${index + 1}`}
-                  />
+                  <input type="text" value={tech} onChange={(e) => handleTechnicienChange(index, e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" placeholder={`Nom du technicien ${index + 1}`}/>
                   {formData.noms_techniciens.length > 1 && (
                     <button type="button" onClick={() => removeTechnicien(index)} className="bg-red-100 text-red-600 hover:bg-red-200 p-2 rounded-md transition" title="Supprimer">✕</button>
                   )}
@@ -187,10 +172,8 @@ export default function InterventionForm() {
           </div>
         </div>
 
-        {/* --- CARTE 3 : TRAVAUX --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Travaux & Diagnostic</h2>
-          
           <div className="mb-4">
             <label className={labelClasses}>Description du problème</label>
             <textarea name="description_probleme" value={formData.description_probleme} onChange={handleChange} rows="3" className={inputClasses} placeholder="Diagnostic initial observé sur site..."></textarea>
@@ -209,15 +192,11 @@ export default function InterventionForm() {
           </div>
         </div>
 
-        {/* --- CARTE 4 : PHOTOS --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Photos (Avant / Pendant / Après)</h2>
           <div className="mt-2 flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 bg-gray-50 relative">
             <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-            <div className="text-center text-gray-500">
-              <p className="font-medium">Cliquez pour ajouter des photos</p>
-              <p className="text-xs">PNG, JPG jusqu'à 5MB</p>
-            </div>
+            <div className="text-center text-gray-500"><p className="font-medium">Cliquez pour ajouter des photos</p><p className="text-xs">PNG, JPG jusqu'à 5MB</p></div>
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {photos.map((p, index) => (
@@ -225,9 +204,7 @@ export default function InterventionForm() {
                 <img src={URL.createObjectURL(p.file)} alt="preview" className="w-full h-32 object-cover rounded-md mb-2 bg-white" />
                 <div className="flex gap-2 mt-auto">
                   <select value={p.categorie} onChange={(e) => updatePhotoMeta(index, 'categorie', e.target.value)} className="flex-1 text-sm border rounded p-1.5 bg-white">
-                    <option value="avant">🟢 Avant</option>
-                    <option value="pendant">🟡 Pendant</option>
-                    <option value="apres">🔴 Après</option>
+                    <option value="avant">🟢 Avant</option><option value="pendant">🟡 Pendant</option><option value="apres">🔴 Après</option>
                   </select>
                   <input type="text" placeholder="Légende..." value={p.legende} onChange={(e) => updatePhotoMeta(index, 'legende', e.target.value)} className="flex-[2] text-sm border rounded p-1.5 bg-white" />
                 </div>
@@ -241,26 +218,22 @@ export default function InterventionForm() {
         </button>
       </form>
 
-      {/* --- MODULES QUI APPARAISSENT APRÈS SAUVEGARDE --- */}
       {interventionId && (
         <div className="mt-8 space-y-8 pt-6 border-t-2 border-dashed border-gray-300">
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
             <h2 className="text-xl font-bold text-blue-800">Intervention N°{interventionId} en cours de complétion...</h2>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-blue-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-2">Étape 2 : Note vocale</h2>
             <NoteVocale interventionId={interventionId} />
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-purple-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-2">Étape 3 : Signature du client</h2>
             <SignatureClient interventionId={interventionId} />
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-green-500 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Étape 4 : Rapport final</h2>
-            <button onClick={() => window.open(`http://localhost:3000/api/pdf/${interventionId}`, '_blank')} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 text-lg flex items-center justify-center gap-2">
+            <button onClick={() => window.open(`${API}/pdf/${interventionId}`, '_blank')} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-xl shadow-md transition duration-200 text-lg flex items-center justify-center gap-2">
               <span>📄</span> Télécharger le Rapport PDF
             </button>
           </div>

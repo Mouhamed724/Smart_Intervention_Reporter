@@ -35,6 +35,10 @@ const Intervention = sequelize.define('Intervention', {
     remarques_client: { 
     type: DataTypes.TEXT 
   },
+    titre_rapport: { 
+    type: DataTypes.STRING,
+    allowNull: true // Ce champ est optionnel
+  },
   id_client: { 
     type: DataTypes.INTEGER, 
     allowNull: false 

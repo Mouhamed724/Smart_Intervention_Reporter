@@ -41,7 +41,8 @@ exports.genererRapport = async (req, res) => {
     doc.moveDown(5);
 
     // 02. Titre du rapport
-    doc.fontSize(22).font('Helvetica-Bold').fillColor('#1a365d').text("RAPPORT D'INTERVENTION", { align: 'center' });
+    const titrePdf = intervention.titre_rapport ? intervention.titre_rapport.toUpperCase() : "RAPPORT D'INTERVENTION";
+    doc.fontSize(22).font('Helvetica-Bold').fillColor('#1a365d').text(titrePdf, { align: 'center' });
     doc.moveTo(50, doc.y + 5).lineTo(545, doc.y + 5).lineWidth(2).stroke();
     doc.moveDown(1.5);
     doc.fillColor('black');
@@ -74,7 +75,7 @@ exports.genererRapport = async (req, res) => {
     doc.moveDown(1);
 
     // 07. Type d'intervention
-    doc.font('Helvetica-Bold').text("TYPE D'INTERVENTION", { underline: true }); // CORRIGÉ ICI
+    doc.font('Helvetica-Bold').text("TYPE D'INTERVENTION", { underline: true });
     doc.moveDown(0.3);
     doc.font('Helvetica').text(intervention.type_intervention);
     if (intervention.equipement) {
@@ -105,7 +106,7 @@ exports.genererRapport = async (req, res) => {
     // 10. Photos
     if (intervention.photos.length > 0) {
       if (doc.y > 550) doc.addPage(); 
-      doc.font('Helvetica-Bold').text("PHOTOS D'INTERVENTION", { underline: true }); // CORRIGÉ ICI
+      doc.font('Helvetica-Bold').text("PHOTOS D'INTERVENTION", { underline: true });
       doc.moveDown(0.5);
       for (const photo of intervention.photos) {
         const photoPath = getAbsolutePath(photo.chemin_photo);
@@ -165,7 +166,6 @@ exports.genererRapport = async (req, res) => {
     stream.on('finish', () => res.download(filePath, `Rapport_DGS_${id_intervention}.pdf`));
 
   } catch (error) {
-    console.error("Erreur PDF:", error);
     res.status(500).json({ error: "Erreur lors de la génération du PDF" });
   }
 };
